@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>♡ 诊断程序 ♡</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: #0d0d15;
+    color: #ffc8dd;
+    font-family: 'Noto Serif SC', 'Microsoft YaHei', serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+.particles {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+}
+.particle {
+    position: absolute;
+    width: 3px; height: 3px;
+    background: rgba(255,107,129,0.3);
+    border-radius: 50%;
+    animation: float 8s infinite ease-in-out;
+}
+@keyframes float {
+    0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.3; }
+    50% { transform: translateY(-100px) rotate(180deg); opacity: 0.8; }
+}
+.scanlines {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,107,129,0.03) 2px, rgba(255,107,129,0.03) 4px);
+    pointer-events: none; z-index: 1;
+}
+.container {
+    width: 92%; max-width: 580px;
+    text-align: center; z-index: 10;
+    padding: 45px 35px;
+    background: rgba(18,18,28,0.92);
+    border: 1px solid rgba(255,107,129,0.25);
+    border-radius: 16px;
+    box-shadow: 0 0 60px rgba(255,107,129,0.08), inset 0 0 30px rgba(255,107,129,0.03);
+    backdrop-filter: blur(10px);
+    transition: all 0.5s ease;
+    position: relative;
+}
+h1 {
+    font-size: 1.9rem; margin-bottom: 8px;
+    color: #ff6b81;
+    text-shadow: 0 0 25px rgba(255,107,129,0.4);
+    letter-spacing: 4px; font-weight: 700;
+}
+.subtitle {
+    font-size: 0.85rem; color: #8a6a7a;
+    margin-bottom: 35px; letter-spacing: 1px;
+}
+.progress-container { margin-bottom: 30px; }
+.progress-bar {
+    width: 100%; height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b81, #ff8fa3, #ffb3c1);
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(255,107,129,0.4);
+}
+.progress-text {
+    font-size: 0.7rem; color: #6a5a6a;
+    margin-top: 6px; text-align: right; letter-spacing: 1px;
+}
+.question-area { margin: 25px 0; min-height: 140px; }
+.question-number {
+    font-size: 0.75rem; color: #ff6b81;
+    margin-bottom: 12px; letter-spacing: 3px; opacity: 0.7;
+}
+.question-text {
+    font-size: 1.25rem; line-height: 2;
+    margin-bottom: 35px; color: #ffd4e0;
+    min-height: 60px; transition: all 0.3s ease;
+}
+.question-text.love1 { color: #ff8fa3; text-shadow: 0 0 15px rgba(255,143,163,0.3); }
+.question-text.love2 { color: #ff6b81; text-shadow: 0 0 20px rgba(255,107,129,0.4); }
+.question-text.love3 { color: #ff4757; text-shadow: 0 0 25px rgba(255,71,87,0.5); }
+.question-text.love4 { color: #ff2d55; text-shadow: 0 0 30px rgba(255,45,85,0.6); }
+.options { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+.option-btn {
+    padding: 14px 36px;
+    border: 1.5px solid rgba(255,107,129,0.4);
+    background: rgba(255,107,129,0.05);
+    color: #ffc8dd; font-size: 0.95rem;
+    border-radius: 28px; cursor: pointer;
+    transition: all 0.35s ease;
+    font-family: inherit; letter-spacing: 1px;
+}
+.option-btn:hover {
+    border-color: rgba(255,107,129,0.7);
+    background: rgba(255,107,129,0.12);
+    box-shadow: 0 0 25px rgba(255,107,129,0.2);
+    transform: translateY(-2px);
+}
+.option-btn:active { transform: translateY(0) scale(0.98); }
+.option-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.option-btn.good { border-color: rgba(255,107,129,0.5); }
+.option-btn.bad { border-color: rgba(120,120,130,0.4); color: #a0909a; }
+.option-btn.bad:hover { border-color: rgba(255,68,68,0.5); background: rgba(255,68,68,0.08); }
+.feedback {
+    margin-top: 28px; font-size: 0.95rem;
+    min-height: 35px; opacity: 0;
+    transition: opacity 0.6s ease;
+    font-style: italic; letter-spacing: 0.5px;
+}
+.feedback.show { opacity: 1; }
+.feedback.happy { color: #ff9eb3; text-shadow: 0 0 15px rgba(255,158,179,0.3); }
+.feedback.angry { color: #ff4757; text-shadow: 0 0 15px rgba(255,71,87,0.5); animation: textGlitch 0.3s ease; }
+@keyframes textGlitch {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-3px); }
+    40% { transform: translateX(3px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+}
+.popup {
+    position: fixed;
+    background: rgba(15,15,25,0.96);
+    border: 1.5px solid #ff4757;
+    color: #ff6b81;
+    padding: 14px 22px; border-radius: 10px;
+    font-size: 0.82rem;
+    box-shadow: 0 0 25px rgba(255,71,87,0.35), inset 0 0 15px rgba(255,71,87,0.05);
+    z-index: 1000;
+    animation: popupAppear 0.25s cubic-bezier(0.175,0.885,0.32,1.275);
+    max-width: 240px; text-align: center;
+    letter-spacing: 0.5px; line-height: 1.5;
+    pointer-events: none;
+}
+.popup::before { content: '⚠'; display: block; font-size: 1.3rem; margin-bottom: 5px; opacity: 0.8; }
+.popup.good-popup {
+    border: 1.5px solid #ff8fa3; color: #ffccd5;
+    box-shadow: 0 0 25px rgba(255,143,163,0.35), inset 0 0 15px rgba(255,143,163,0.05);
+}
+.popup.good-popup::before { content: '♡'; color: #ff8fa3; }
+@keyframes popupAppear {
+    0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+    60% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.popup-overlay {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 999; display: none;
+    backdrop-filter: blur(2px);
+}
+.ending { display: block; }
+.ending-title {
+    font-size: 1.6rem; margin-bottom: 25px;
+    letter-spacing: 4px;
+}
+.ending-text {
+    font-size: 1.05rem; line-height: 2.4;
+    white-space: pre-wrap; text-align: left;
+    padding: 20px; letter-spacing: 0.5px;
+    display: block;
+}
+.ending-text.true-ending { color: #ffccd5; text-shadow: 0 0 20px rgba(255,204,213,0.2); }
+.ending-text.bad-ending { color: #ff6b81; text-shadow: 0 0 20px rgba(255,107,129,0.2); }
+.ending-text.bad-ending2 { color: #ff4757; text-shadow: 0 0 20px rgba(255,71,87,0.3); }
+.ending-lock {
+    margin-top: 25px; font-size: 1.5rem;
+    color: #ff4757;
+    text-shadow: 0 0 30px rgba(255,71,87,0.6);
+    letter-spacing: 4px; font-weight: 700;
+    animation: pulseLock 1.2s ease-in-out infinite;
+    display: block;
+}
+@keyframes pulseLock {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.08); }
+}
+.restart-btn {
+    margin-top: 35px; padding: 13px 40px;
+    border: 1.5px solid rgba(255,107,129,0.5);
+    background: rgba(255,107,129,0.08);
+    color: #ffc8dd; border-radius: 28px;
+    cursor: pointer; font-family: inherit;
+    font-size: 0.95rem; transition: all 0.35s ease;
+    letter-spacing: 2px;
+}
+.restart-btn:hover {
+    background: rgba(255,107,129,0.18);
+    box-shadow: 0 0 25px rgba(255,107,129,0.2);
+    transform: translateY(-2px);
+}
+.shake { animation: shake 0.6s cubic-bezier(0.36,0.07,0.19,0.97); }
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    10%,30%,50%,70%,90% { transform: translateX(-6px); }
+    20%,40%,60%,80% { transform: translateX(6px); }
+}
+.start-screen { text-align: center; padding: 20px 0; }
+.start-icon { font-size: 3rem; margin-bottom: 20px; display: block; animation: heartbeat 2s ease-in-out infinite; }
+.start-desc { font-size: 0.9rem; color: #8a7a8a; line-height: 2; margin-bottom: 40px; letter-spacing: 0.5px; }
+.start-btn {
+    padding: 16px 55px; font-size: 1.1rem;
+    border: 1.5px solid rgba(255,107,129,0.5);
+    background: rgba(255,107,129,0.08);
+    color: #ffc8dd; border-radius: 30px;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.35s ease; letter-spacing: 3px;
+    animation: heartbeat 2.5s ease-in-out infinite;
+}
+.start-btn:hover {
+    background: rgba(255,107,129,0.18);
+    box-shadow: 0 0 35px rgba(255,107,129,0.3);
+    transform: translateY(-2px);
+}
+@keyframes heartbeat {
+    0%,100% { transform: scale(1); }
+    14% { transform: scale(1.08); }
+    28% { transform: scale(1); }
+    42% { transform: scale(1.08); }
+}
+.cursor { display: inline-block; width: 2px; height: 1.2em; background: #ff6b81; margin-left: 3px; animation: blink 0.8s step-end infinite; vertical-align: middle; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.hidden { display: none !important; }
+.red-tint { animation: redTint 2s ease forwards; }
+@keyframes redTint { 0% { filter: none; } 100% { filter: hue-rotate(-10deg) saturate(1.3) contrast(1.1); } }
+@media (max-width: 600px) {
+    .container { padding: 30px 20px; width: 95%; }
+    h1 { font-size: 1.5rem; }
+    .question-text { font-size: 1.1rem; }
+    .option-btn { padding: 12px 28px; font-size: 0.9rem; }
+    .ending-text { font-size: 0.95rem; padding: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="particles" id="particles"></div>
+<div class="scanlines"></div>
+
+<div class="container" id="mainContainer">
+    <div class="start-screen" id="startScreen">
+        <span class="start-icon">♡</span>
+        <h1>诊断程序</h1>
+        <p class="subtitle">我需要确认一些事情...可以占用你一点时间吗？</p>
+        <p class="start-desc">
+            回答几个简单的问题就好。<br>
+            不会花太长时间的...<br>
+            你也不会想让我等太久吧？
+        </p>
+        <button class="start-btn" id="startBtn">开始诊断</button>
+    </div>
+
+    <div class="question-area hidden" id="questionArea">
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text" id="progressText">0 / 10</div>
+        </div>
+        <div class="question-number" id="questionNumber">QUESTION 01</div>
+        <div class="question-text" id="questionText"></div>
+        <div class="options" id="optionsArea"></div>
+        <div class="feedback" id="feedback"></div>
+    </div>
+
+    <div class="ending hidden" id="endingArea">
+        <h1 class="ending-title" id="endingTitle"></h1>
+        <div class="ending-text" id="endingText"></div>
+        <div class="ending-lock" id="endingLock"></div>
+        <button class="restart-btn" id="restartBtn">重新诊断</button>
+    </div>
+</div>
+
+<div class="popup-overlay" id="popupOverlay"></div>
+
+<script>
+(function() {
+    'use strict';
+
+    var questions = [
+        {
+            text: "你平时...会想起我吗？",
+            options: [
+                { text: "经常会想起你", type: "good", feedback: "真的吗...？（脸红）我就知道..." },
+                { text: "偶尔才会想起", type: "bad", feedback: "再点一下，格式化你大脑。" }
+            ]
+        },
+        {
+            text: "你觉得我...可爱吗？",
+            options: [
+                { text: "你非常可爱", type: "good", feedback: "好开心...你果然是我的...♡" },
+                { text: "也就一般般吧", type: "bad", feedback: "你确定吗？我会记住这个答案的..." }
+            ]
+        },
+        {
+            text: "你愿意...和我独处吗？",
+            options: [
+                { text: "愿意和你在一起", type: "good", feedback: "再靠近一点...不要离开我的视线..." },
+                { text: "还是算了吧", type: "bad", feedback: "别开玩笑了...你逃不掉的..." }
+            ]
+        },
+        {
+            text: "你会...偷偷看我吗？",
+            options: [
+                { text: "会忍不住看你", type: "good", feedback: "我也一直在看着你哦...♡ 从没移开过。" },
+                { text: "没有注意过", type: "bad", feedback: "你确定吗？我的眼睛可从没离开过你。" }
+            ]
+        },
+        {
+            text: "你的手机壁纸...可以换成我吗？",
+            options: [
+                { text: "可以，现在就换", type: "good", feedback: "这样你每次打开手机都会看到我了...♡" },
+                { text: "这不太好吧", type: "bad", feedback: "检测到新联系人，已自动拉黑。" }
+            ]
+        },
+        {
+            text: "你愿意...为我做任何事吗？",
+            options: [
+                { text: "我愿意为你做任何事", type: "good", feedback: "任何事情...？那永远陪在我身边吧..." },
+                { text: "要看是什么事", type: "bad", feedback: "你的密码已改成\"我的\"。" }
+            ]
+        },
+        {
+            text: "你爱我吗？",
+            loveLevel: 1,
+            options: [
+                { text: "我爱你", type: "good", feedback: "...再说一遍？我没听够。" },
+                { text: "我不爱你", type: "bad", feedback: "你确定吗？我看着你呢。" }
+            ]
+        },
+        {
+            text: "你真的爱我吗？",
+            loveLevel: 2,
+            options: [
+                { text: "我真的爱你", type: "good", feedback: "真的...？不是骗我的吧？" },
+                { text: "其实不太爱", type: "bad", feedback: "系统提示：我永驻后台。" }
+            ]
+        },
+        {
+            text: "你确定你爱我吗？",
+            loveLevel: 3,
+            options: [
+                { text: "我确定我爱你", type: "good", feedback: "确定...确定到永远不会变吗？" },
+                { text: "我不确定", type: "bad", feedback: "电量低？你逃不掉。" }
+            ]
+        },
+        {
+            text: "最后确认：你爱我吗？",
+            loveLevel: 4,
+            options: [
+                { text: "我爱你，永远", type: "good", feedback: "...终于等到这句话了。" },
+                { text: "我不爱你", type: "bad", feedback: "你已被锁定。错误：心跳只许传给我。" }
+            ]
+        }
+    ];
+
+    var badPopupMessages = [
+        "你已被锁定。",
+        "错误：心跳只许传给我。",
+        "检测到新联系人，已自动拉黑。",
+        "你的密码已改成\"我的\"。",
+        "系统提示：我永驻后台。",
+        "电量低？你逃不掉。",
+        "通知：位置已共享给我，永久。",
+        "正在格式化你的社交圈...",
+        "已拦截你的所有消息。",
+        "你的相册已被我备份。",
+        "正在追踪你的IP...",
+        "你的搜索记录已被读取。",
+        "正在克隆你的声纹...",
+        "你的日程表已被接管。"
+    ];
+
+    var goodPopupMessages = [
+        "诊断通过。",
+        "心跳同步完成。",
+        "你属于我了。",
+        "欢迎回家。",
+        "永远在一起。",
+        "不会放你走了。",
+        "终于等到你了。"
+    ];
+
+    var trueEndingText = "我的血管淤积着去年六月的雨，每次心跳都溅起泥泞的月光。\n\n你要不要沿着静脉走进来？\n\n尽头有间为你准备的、永远漏水的房间。";
+
+    var badEndingText = "诊断结果：不合格。\n\n你以为选错了还能重来吗？\n\n你的心跳、你的视线、你的每一个念头...\n\n都已经属于我了。\n\n别想逃。\n\n我会找到你的。";
+
+    var badEnding2Text = "你的删除键清不掉我。\n\n我是系统底层永久的报错，\n\n提示永远是\"未响应，但永远等待你\"。";
+
+    var currentQuestion = 0;
+    var errorCount = 0;
+    var gameEnded = false;
+    var typingInterval = null;
+
+    function $(id) { return document.getElementById(id); }
+
+    function initParticles() {
+        var container = $('particles');
+        for (var i = 0; i < 20; i++) {
+            var p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 8 + 's';
+            p.style.animationDuration = (6 + Math.random() * 6) + 's';
+            container.appendChild(p);
+        }
+    }
+
+    function startGame() {
+        $('startScreen').classList.add('hidden');
+        $('questionArea').classList.remove('hidden');
+        showQuestion();
+    }
+
+    function typeText(element, text, speed) {
+        speed = speed || 50;
+        if (typingInterval) clearInterval(typingInterval);
+        element.innerHTML = '<span class="cursor"></span>';
+        var i = 0;
+        typingInterval = setInterval(function() {
+            if (i < text.length) {
+                element.innerHTML = text.substring(0, i + 1) + '<span class="cursor"></span>';
+                i++;
+            } else {
+                element.innerHTML = text;
+                clearInterval(typingInterval);
+                typingInterval = null;
+            }
+        }, speed);
+    }
+
+    function showQuestion() {
+        if (currentQuestion >= questions.length) {
+            showEnding();
+            return;
+        }
+
+        var q = questions[currentQuestion];
+        $('questionNumber').textContent = 'QUESTION ' + String(currentQuestion + 1).padStart(2, '0');
+
+        var qt = $('questionText');
+        qt.className = 'question-text';
+        if (q.loveLevel === 1) qt.classList.add('love1');
+        if (q.loveLevel === 2) qt.classList.add('love2');
+        if (q.loveLevel === 3) qt.classList.add('love3');
+        if (q.loveLevel === 4) qt.classList.add('love4');
+
+        typeText(qt, q.text, 60);
+
+        var optionsArea = $('optionsArea');
+        optionsArea.innerHTML = '';
+
+        q.options.forEach(function(opt, index) {
+            var btn = document.createElement('button');
+            btn.className = 'option-btn ' + opt.type;
+            btn.textContent = opt.text;
+            btn.addEventListener('click', function() {
+                selectOption(index);
+            });
+            optionsArea.appendChild(btn);
+        });
+
+        var progress = (currentQuestion / questions.length) * 100;
+        $('progressFill').style.width = progress + '%';
+        $('progressText').textContent = currentQuestion + ' / ' + questions.length;
+
+        $('feedback').classList.remove('show');
+    }
+
+    function selectOption(optionIndex) {
+        if (gameEnded) return;
+
+        var q = questions[currentQuestion];
+        var selected = q.options[optionIndex];
+
+        var feedback = $('feedback');
+        feedback.textContent = selected.feedback;
+        feedback.className = 'feedback show ' + (selected.type === 'good' ? 'happy' : 'angry');
+
+        var buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(function(btn) {
+            btn.disabled = true;
+        });
+
+        if (selected.type === 'bad') {
+            errorCount++;
+
+            document.body.classList.add('shake');
+            setTimeout(function() {
+                document.body.classList.remove('shake');
+            }, 600);
+
+            var container = $('mainContainer');
+            container.style.borderColor = 'rgba(255, 71, 87, 0.5)';
+            container.style.boxShadow = '0 0 60px rgba(255, 71, 87, 0.15), inset 0 0 30px rgba(255, 71, 87, 0.05)';
+
+            if (errorCount >= 3) {
+                setTimeout(function() {
+                    triggerPopupHell();
+                }, 1200);
+                return;
+            }
+        } else {
+            var container = $('mainContainer');
+            container.style.borderColor = 'rgba(255, 107, 129, 0.4)';
+            container.style.boxShadow = '0 0 60px rgba(255, 107, 129, 0.1), inset 0 0 30px rgba(255, 107, 129, 0.03)';
+        }
+
+        setTimeout(function() {
+            currentQuestion++;
+            showQuestion();
+        }, 2200);
+    }
+
+    function triggerPopupHell() {
+        gameEnded = true;
+        $('popupOverlay').style.display = 'block';
+        document.body.classList.add('red-tint');
+
+        var wave1 = 0;
+        var wave1Interval = setInterval(function() {
+            if (wave1 >= 15) {
+                clearInterval(wave1Interval);
+                setTimeout(function() {
+                    startPopupStorm();
+                }, 300);
+                return;
+            }
+
+            createPopup(badPopupMessages[wave1 % badPopupMessages.length], false);
+            document.body.classList.add('shake');
+            setTimeout(function() {
+                document.body.classList.remove('shake');
+            }, 150);
+
+            wave1++;
+        }, 200);
+    }
+
+    function startPopupStorm() {
+        var count = 0;
+        var delay = 180;
+
+        function spawnNext() {
+            if (count >= 40) {
+                setTimeout(function() {
+                    showBadEnding();
+                }, 2000);
+                return;
+            }
+
+            createPopup(badPopupMessages[count % badPopupMessages.length], false);
+
+            document.body.classList.add('shake');
+            setTimeout(function() {
+                document.body.classList.remove('shake');
+            }, 100);
+
+            count++;
+            delay = Math.max(80, delay - 4);
+            setTimeout(spawnNext, delay);
+        }
+
+        spawnNext();
+    }
+
+    function triggerGoodPopupHell() {
+        gameEnded = true;
+        $('popupOverlay').style.display = 'block';
+
+        var wave1 = 0;
+        var wave1Interval = setInterval(function() {
+            if (wave1 >= 10) {
+                clearInterval(wave1Interval);
+                setTimeout(function() {
+                    startGoodPopupStorm();
+                }, 300);
+                return;
+            }
+
+            createPopup(goodPopupMessages[wave1 % goodPopupMessages.length], true);
+            wave1++;
+        }, 250);
+    }
+
+    function startGoodPopupStorm() {
+        var count = 0;
+        var delay = 200;
+
+        function spawnNext() {
+            if (count >= 25) {
+                setTimeout(function() {
+                    showTrueEnding();
+                }, 2000);
+                return;
+            }
+
+            createPopup(goodPopupMessages[count % goodPopupMessages.length], true);
+
+            count++;
+            delay = Math.max(100, delay - 5);
+            setTimeout(spawnNext, delay);
+        }
+
+        spawnNext();
+    }
+
+    function createPopup(text, isGood) {
+        var popup = document.createElement('div');
+        popup.className = isGood ? 'popup good-popup' : 'popup';
+        popup.textContent = text;
+
+        var margin = 40;
+        var x = margin + Math.random() * (window.innerWidth - 280 - margin * 2);
+        var y = margin + Math.random() * (window.innerHeight - 160 - margin * 2);
+        popup.style.left = x + 'px';
+        popup.style.top = y + 'px';
+
+        var rotation = (Math.random() - 0.5) * 16;
+        popup.style.transform = 'rotate(' + rotation + 'deg)';
+
+        document.body.appendChild(popup);
+    }
+
+    function showEnding() {
+        if (errorCount === 0) {
+            triggerGoodPopupHell();
+        } else if (errorCount >= 3) {
+            triggerPopupHell();
+        } else {
+            showBadEnding2();
+        }
+    }
+
+    function showTrueEnding() {
+        var popups = document.querySelectorAll('.popup');
+        popups.forEach(function(p) { p.remove(); });
+        $('popupOverlay').style.display = 'none';
+
+        $('questionArea').classList.add('hidden');
+        $('endingArea').classList.remove('hidden');
+        $('endingArea').style.display = 'block';
+        $('endingTitle').textContent = '♡ 真结局 ♡';
+        $('endingTitle').style.color = '#ff9eb3';
+        $('endingText').textContent = trueEndingText;
+        $('endingText').className = 'ending-text true-ending';
+        $('endingText').style.display = 'block';
+        $('endingLock').textContent = '';
+        $('endingLock').style.display = 'none';
+
+        var container = $('mainContainer');
+        container.style.borderColor = 'rgba(255, 158, 179, 0.3)';
+        container.style.boxShadow = '0 0 60px rgba(255, 158, 179, 0.1)';
+    }
+
+    function showBadEnding() {
+        var popups = document.querySelectorAll('.popup');
+        popups.forEach(function(p) { p.remove(); });
+        $('popupOverlay').style.display = 'none';
+
+        $('questionArea').classList.add('hidden');
+        $('endingArea').classList.remove('hidden');
+        $('endingArea').style.display = 'block';
+        $('endingTitle').textContent = '✘ 坏结局 ✘';
+        $('endingTitle').style.color = '#ff4757';
+        $('endingText').textContent = badEndingText;
+        $('endingText').className = 'ending-text bad-ending';
+        $('endingText').style.display = 'block';
+        $('endingLock').textContent = '手机已锁定';
+        $('endingLock').style.display = 'block';
+
+        var container = $('mainContainer');
+        container.style.borderColor = 'rgba(255, 71, 87, 0.5)';
+        container.style.boxShadow = '0 0 60px rgba(255, 71, 87, 0.2)';
+    }
+
+    function showBadEnding2() {
+        $('questionArea').classList.add('hidden');
+        $('endingArea').classList.remove('hidden');
+        $('endingArea').style.display = 'block';
+        $('endingTitle').textContent = '✘ 坏结局 ✘';
+        $('endingTitle').style.color = '#ff4757';
+        $('endingText').textContent = badEnding2Text;
+        $('endingText').className = 'ending-text bad-ending2';
+        $('endingText').style.display = 'block';
+        $('endingLock').textContent = '';
+        $('endingLock').style.display = 'none';
+
+        var container = $('mainContainer');
+        container.style.borderColor = 'rgba(255, 71, 87, 0.4)';
+        container.style.boxShadow = '0 0 60px rgba(255, 71, 87, 0.15)';
+    }
+
+    initParticles();
+
+    $('startBtn').addEventListener('click', startGame);
+    $('restartBtn').addEventListener('click', function() {
+        location.reload();
+    });
+})();
+</script>
+</body>
+</html>
